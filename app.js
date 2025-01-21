@@ -1,6 +1,5 @@
 
 const express = require('express')
-const consign = require('consign')
 const app = express()
 const { createServer } = require('http')
 const server = new createServer(app)
@@ -25,6 +24,7 @@ io.engine.use(sessionMiddleware);
 app.set('view engine', 'ejs')
 app.set('views', 'src/views')
 
+// Lógica do endpoint
 
 app.get('/adm', (req, res) => {
     res.render('votacao-adm', {})
@@ -38,72 +38,68 @@ app.get('/report', (req, res) => {
     res.render('votacao-report', {})
 })
 
-const def = {
+//Lógica do socket
+
+const votedIpList = []
+
+const enquete = {
     pergunta: "",
     opcoes: []
 }
 
-function resetData(){
-    def.pergunta = ""
-    def.opcoes = []
+function limparEnquete(){
+    enquete.pergunta = ""
+    enquete.opcoes = []
 }
 
 io.on('connection', (socket) => {
-    const sessionId = socket.request.session.id;
-    const isVoted = socket.request.session.votou;
-    console.log('Aluno conectado ' + sessionId);
+    const meuIp = socket.handshake.address
+    const isVoted = votedIpList.find(ip => ip == meuIp )
 
     if(!isVoted){
-        io.to(socket.id).emit("votacao", def);
-       
-       // socket.sockets.connected[sessionId].emit("votacao", def);
+        io.to(socket.id).emit("votacao", enquete); 
+       // socket.sockets.connected[sessionId].emit("votacao", enquete);
     }
 
-    io.emit("resultado", def)
+    io.emit("resultado", enquete)
 
     socket.on("questao", (data) => {
-        resetData()
-        def.pergunta = data.pergunta
-        def.opcoes = data.opcoes
+        limparEnquete()
+        enquete.pergunta = data.pergunta
+        enquete.opcoes = data.opcoes
 
-        def.opcoes = def.opcoes.map(op => {
+        enquete.opcoes = enquete.opcoes.map(op => {
             return {
                 option: op,
                 cont: 0
             }
         })
 
-        socket.request.session.reload((err) => {
-            if (err) {
-                return socket.disconnect();
-            }
-            socket.request.session.votou = false;
-            socket.request.session.save();
-        });
+        for(let index in votedIpList){
+            delete votedIpList[index]
+        }
 
-        io.emit("votacao", def)
-        io.emit("resultado", def)
+        io.emit("votacao", enquete)
+        io.emit("resultado", enquete)
     })
 
     socket.on("limpardados", () => {
-        resetData()
-        io.emit("votacao", def)
-        io.emit("resultado", def)
+        limparEnquete()
+        io.emit("votacao", enquete)
+        io.emit("resultado", enquete)
     })
 
     socket.on("resposta", (data) => {
-        if (!socket.request.session.votou) {
 
-            socket.request.session.reload((err) => {
-                if (err) {
-                    return socket.disconnect();
-                }
-                socket.request.session.votou = true;
-                socket.request.session.save();
-            });
+        console.group('O IP votou:')
+        console.log(socket.handshake.address)
+        console.groupEnd()
 
+        const isVoted = votedIpList.find(ip => ip == socket.handshake.address)
 
-            def.opcoes = def.opcoes.map(op => {
+        if (!isVoted) {
+         
+            enquete.opcoes = enquete.opcoes.map(op => {
 
                 if (data == op.option) {
                     return {
@@ -119,13 +115,13 @@ io.on('connection', (socket) => {
 
             })
 
-            //  console.log(def)
-            socket.request.session.votou = true
-            io.emit("resultado", def)
+            //  console.log(enquete)
+            votedIpList.push(socket.handshake.address)
+            io.emit("resultado", enquete)
             return;
         }
         else {
-            console.log("Já votou " + sessionId + " - " + socket.request.session.votou)
+            console.log(socket.handshake.address + " já votou!")
         }
 
 
