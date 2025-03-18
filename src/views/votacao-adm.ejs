@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Adiconar Questão</title>
+  <link rel="stylesheet" href="assets/styles/_global.css">
+  <link rel="stylesheet" type="text/css" href="assets/semantic-ui/semantic.min.css">
+  <script src="https://code.jquery.com/jquery-3.1.1.min.js"
+    integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8=" crossorigin="anonymous"></script>
+  <script src="assets/semantic-ui/semantic.min.js"></script>
+  <script src="https://unpkg.com/sweetalert/dist/sweetalert.min.js"></script>
+
+</head>
+
+<body>
+
+  <body>
+    <div class="ui tiny inverted segment">
+      <div class="ui inverted secondary pointing menu">
+        <a class="active item" href="/adm">
+          Criar Questão
+        </a>
+        <a class="item" href="/">
+          Votação
+        </a>
+        <a class="item" href="/report">
+          Relatório
+        </a>
+      </div>
+    </div>
+    <div id="container">    
+      <h2 class="ui header"><i class="angle double down icon"></i> Cadastrar pegunta</h2>
+      <div class="ui divider"></div>
+      <div class="ui form">       
+        <div class="fields">
+          <div class="eight wide field">
+            <label for="pergunta">Sua pergunta</label>
+            <input type="text" name="pergunta" id="pergunta" placeholder="Vai chover hoje?">
+          </div>
+          <div class="four wide field">
+            <label for="qtdeopcoes">Quantidade de respostas</label>
+            <input type="number" name="qtdeopcoes" id="qtdeopcoes" value="2" min="1" max="10">
+          </div>
+          <div class="four wide field">            
+            <button id="registrar" class="ui fluid right labeled icon button">
+              <i class="right arrow icon"></i>
+              Adicionar opções
+            </button>
+          </div>
+        </div>  
+        <div id="opcoes" class="ui blue segment">
+              
+        </div>     
+      </div>  
+    </div>
+    <script src="assets/scripts/_global.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const dados = {
+        pergunta: "",
+        opcoes: []
+      }
+      let txtPergunta = document.querySelector("#pergunta")
+      let divOpcoes = document.querySelector("#opcoes")
+      let qtdeOpcoes = document.querySelector("#qtdeopcoes")
+      let btnInserir = document.querySelector("#registrar")
+      btnInserir.addEventListener("click", adicionarOpcoes)
+
+      divOpcoes.style = "display:none;"
+
+      function adicionarOpcoes() {
+        divOpcoes.style = "display:block;"
+        divOpcoes.innerHTML = ""
+
+        const btnConfirmar = document.createElement("button")
+        btnConfirmar.innerText = "Salvar"
+        btnConfirmar.classList.add("ui", "button")
+        btnConfirmar.addEventListener("click", salvarPerguntas)
+
+        const btnLimpar = document.createElement("button")
+        btnLimpar.innerText = "Limpar"
+        btnLimpar.classList.add("ui","yellow","button")
+        btnLimpar.addEventListener("click", limparFormulario)     
+
+        for (let cont = 0; cont < parseInt(qtdeOpcoes.value); cont++) {
+          const divEl = document.createElement("div")
+          divEl.classList.add("field")
+
+          const labelEl = document.createElement("label")
+          labelEl.innerText = "Opção "+ (cont + 1)
+          labelEl.htmlFor = "inpt"+cont
+          divEl.appendChild(labelEl)
+
+          const el = document.createElement("input")
+          el.name = "opcao"
+          el.type = "text"
+          el.id = "inpt"+cont
+
+          divEl.appendChild(el)
+          divOpcoes.appendChild(divEl)
+        }
+
+        divOpcoes.appendChild(btnLimpar)
+        divOpcoes.appendChild(btnConfirmar)
+      
+      }
+
+      function salvarPerguntas() {
+        const opcoes = document.getElementsByName("opcao")
+        dados.pergunta = txtPergunta.value
+        opcoes.forEach(opcao => {
+          dados.opcoes.push(opcao.value)
+        })
+
+        enviarPerguntaSocket()
+        swal("Ótimo!", "Questão enviada", "success");
+        resetarDados()
+      }
+
+      function limparFormulario(){
+        resetarDados()
+        let txtPergunta = document.querySelector("#pergunta")
+        let divOpcoes = document.querySelector("#opcoes")
+        let qtdeOpcoes = document.querySelector("#qtdeopcoes")
+        
+        txtPergunta.value = ""
+        qtdeOpcoes.value = 2
+        divOpcoes.innerHTML = ""
+
+        socket.emit("limpardados", "")
+      }
+
+      function resetarDados(){
+        dados.pergunta = ""
+        dados.opcoes = []
+      }
+
+      function enviarPerguntaSocket() {
+        socket.emit("questao", dados)
+      }
+
+
+
+    </script>
+  </body>
+
+</html>
